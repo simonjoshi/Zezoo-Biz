@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI, Type } from "@google/genai";
 import { 
   Store, 
   MapPin, 
@@ -50,9 +49,6 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 
-// Initialize Gemini
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 // --- Types ---
 interface BusinessResult {
   name: string;
@@ -66,26 +62,6 @@ interface BusinessResult {
   reasonForSale?: string;
   ebitda?: string;
 }
-
-const BUSINESS_SCHEMA = {
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      name: { type: Type.STRING },
-      location: { type: Type.STRING },
-      description: { type: Type.STRING },
-      sourceUrl: { type: Type.STRING, description: "The direct URL to the business listing on a broker or marketplace site." },
-      price: { type: Type.STRING },
-      revenue: { type: Type.STRING },
-      cashFlow: { type: Type.STRING },
-      inventory: { type: Type.STRING },
-      reasonForSale: { type: Type.STRING },
-      ebitda: { type: Type.STRING }
-    },
-    required: ["name", "location", "description", "sourceUrl"]
-  }
-};
 
 // --- Components ---
 const BusinessCard: React.FC<{ 
@@ -336,23 +312,9 @@ export default function App() {
   React.useEffect(() => {
     const fetchFeatured = async () => {
       try {
-        const featuredPrompt = `Find 3 real current "businesses for sale" listings in the United States. 
-        Focus on actual, verifiable search results for unique niches like "coffee shops", "boutique hotels", or "specialty bakeries".
-        
-        CRITICAL: Only provide listings you find via live search. Return an empty array if none are found.`;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-2.0-flash",
-          contents: featuredPrompt,
-          config: {
-            systemInstruction: "You are a specialized business analyst. Return ONLY a valid JSON array of businesses, no markdown, no explanation.",
-            tools: [{ googleSearch: {} }],
-          }
-        });
-
-        const raw1 = response.text || "[]";
-        const match1 = raw1.match(/\[[\s\S]*\]/);
-        const parsed = JSON.parse(match1 ? match1[0] : "[]");
+        const res = await fetch('/api/search?type=featured');
+        if (!res.ok) throw new Error('Search failed');
+        const parsed = await res.json();
         setFeaturedListings(parsed.slice(0, 3));
       } catch (err) {
         console.error("Failed to fetch featured:", err);
@@ -372,31 +334,11 @@ export default function App() {
     setResults(null);
 
     try {
-      const searchPrompt = `Perform a live search for "${query}" currently for sale in ${city}${state ? ', ' + state : ''}. 
-      
-      CRITICAL: You are a business broker researcher. You MUST only return businesses that you find real, active search result listings for. 
-      If you do NOT find a specific business for sale, return an empty array. Do NOT invent businesses.
-      
-      For each business found, extract:
-      - Official Business Name
-      - Location (Neighborhood/City)
-      - Asking Price (Must be from the listing)
-      - Revenue/Cash Flow (If explicitly mentioned)
-      - A growth-focused description based on the listing content.
-      - THE ACTUAL SOURCE URL (Verify it is a real listing page like BizBuySell, LoopNet, or a direct broker site).`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: searchPrompt,
-        config: {
-          systemInstruction: "You are a professional business listing researcher. Return ONLY a valid JSON array of businesses, no markdown, no explanation. If no listings found, return [].",
-          tools: [{ googleSearch: {} }],
-        }
-      });
-
-      const raw2 = response.text || "[]";
-      const match2 = raw2.match(/\[[\s\S]*\]/);
-      const parsedResults = JSON.parse(match2 ? match2[0] : "[]");
+      const location = [city, state].filter(Boolean).join(', ');
+      const params = new URLSearchParams({ q: query, location });
+      const res = await fetch(`/api/search?${params}`);
+      if (!res.ok) throw new Error('Search failed');
+      const parsedResults = await res.json();
       setResults(parsedResults.slice(0, 6)); 
     } catch (err) {
       console.error("Search failed:", err);
