@@ -342,17 +342,17 @@ export default function App() {
         CRITICAL: Only provide listings you find via live search. Return an empty array if none are found.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-2.0-flash",
           contents: featuredPrompt,
           config: {
-            systemInstruction: "You are a specialized business analyst. You ONLY return data found in live search results. If you cannot find real listings, return []. Do not invent data.",
+            systemInstruction: "You are a specialized business analyst. Return ONLY a valid JSON array of businesses, no markdown, no explanation.",
             tools: [{ googleSearch: {} }],
-            responseMimeType: "application/json",
-            responseSchema: BUSINESS_SCHEMA
           }
         });
 
-        const parsed = JSON.parse(response.text || "[]");
+        const raw1 = response.text || "[]";
+        const match1 = raw1.match(/\[[\s\S]*\]/);
+        const parsed = JSON.parse(match1 ? match1[0] : "[]");
         setFeaturedListings(parsed.slice(0, 3));
       } catch (err) {
         console.error("Failed to fetch featured:", err);
@@ -386,17 +386,17 @@ export default function App() {
       - THE ACTUAL SOURCE URL (Verify it is a real listing page like BizBuySell, LoopNet, or a direct broker site).`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.0-flash",
         contents: searchPrompt,
         config: {
-          systemInstruction: "You are a professional business listing researcher. You strictly only provide data found in real-world search results. You never hallucinate business names, prices, or URLs. If no listings are found for the specific query and location, return an empty JSON array [].",
+          systemInstruction: "You are a professional business listing researcher. Return ONLY a valid JSON array of businesses, no markdown, no explanation. If no listings found, return [].",
           tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json",
-          responseSchema: BUSINESS_SCHEMA
         }
       });
 
-      const parsedResults = JSON.parse(response.text || "[]");
+      const raw2 = response.text || "[]";
+      const match2 = raw2.match(/\[[\s\S]*\]/);
+      const parsedResults = JSON.parse(match2 ? match2[0] : "[]");
       setResults(parsedResults.slice(0, 6)); 
     } catch (err) {
       console.error("Search failed:", err);
