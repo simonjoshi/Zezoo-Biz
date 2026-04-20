@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "SavedListing": {
+      "title": "Saved Listing",
+      "description": "A business acquisition listing saved by a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who saved this listing." },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "description": { "type": "string" },
+        "sourceUrl": { "type": "string" },
+        "price": { "type": "string" },
+        "revenue": { "type": "string" },
+        "cashFlow": { "type": "string" },
+        "inventory": { "type": "string" },
+        "reasonForSale": { "type": "string" },
+        "ebitda": { "type": "string" },
+        "savedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "sourceUrl"]
+    }
+  },
+  "firestore": {
+    "/saved_listings/{listingId}": {
+      "schema": "SavedListing",
+      "description": "Collection of business listings saved by users."
+    }
+  }
+}
